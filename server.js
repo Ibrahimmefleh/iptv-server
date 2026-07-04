@@ -168,7 +168,12 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
+
+// Root route to pass healthchecks and redirect to watch
+app.get('/', (req, res) => {
+  res.redirect('/watch.html');
+});
 
 // ========================================
 // Authentication Middleware
