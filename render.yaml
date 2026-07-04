@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: iptv-streaming-server
+    runtime: docker
+    plan: standard
+    
+    # Build configuration
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    
+    # Environment
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: HOST
+        value: 0.0.0.0
+    
+    # Health check
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckTimeout: 10
+    healthCheckStartPeriod: 5
+    
+    # Restart policy
+    autoDeploy: true
+    
+    # Resource limits
+    maxInstanceCount: 1
+    
+    # Scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 1

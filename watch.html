@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>البث المباشر — الحسن الرياضية</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh}
+    header{background:#111;border-bottom:2px solid #c00;padding:14px 20px;display:flex;align-items:center;gap:10px}
+    .brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
+    .live-dot{width:10px;height:10px;background:#e00;border-radius:50%;animation:pulse 1.2s infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    #player-wrap{background:#000;width:100%;aspect-ratio:16/9;max-height:62vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+    #vid{width:100%;height:100%;object-fit:contain;display:none}
+    .placeholder{text-align:center;color:rgba(255,255,255,.3);pointer-events:none}
+    .placeholder .pi{font-size:64px;display:block;margin-bottom:10px}
+    #status{padding:7px 16px;background:#0d0d0d;font-size:12px;color:rgba(255,255,255,.5);min-height:28px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .sbadge{padding:2px 7px;border-radius:8px;font-weight:700;font-size:10px}
+    .sb-hls{background:#0d3321;color:#3fb950}
+    .sb-ts{background:#0b2540;color:#58a6ff}
+    .sb-warn{background:#3b2200;color:#d29922}
+    .sb-err{background:#3b0d0c;color:#f85149}
+    #buf-bar-wrap{height:3px;background:#1a1a1a}
+    #buf-bar{height:100%;background:#c00;width:0%;transition:width .5s linear}
+    #ticker-wrap{background:#c00;color:#fff;padding:8px 16px;font-size:13px;font-weight:600;overflow:hidden;display:none}
+    #ticker-text{display:inline-block;animation:scroll-ticker 20s linear infinite;white-space:nowrap}
+    @keyframes scroll-ticker{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+    .sec-title{padding:16px 16px 10px;font-size:14px;font-weight:600;color:rgba(255,255,255,.6);border-bottom:1px solid rgba(255,255,255,.06)}
+    .ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:16px}
+    .ch-card{background:#161616;border:2px solid rgba(255,255,255,.07);border-radius:12px;padding:0;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+    .ch-card:hover,.ch-card:active{background:#1e1e1e;border-color:#c00;transform:translateY(-1px)}
+    .ch-card.playing{border-color:#c00;background:#1a0000}
+    .ch-card.playing::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:#c00;z-index:2}
+    .ch-logo{width:100%;display:block;object-fit:contain;background:#111;max-height:110px;min-height:80px}
+    .ch-logo-fb{width:100%;height:90px;background:linear-gradient(135deg,#c00,#800);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800}
+    .ch-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,.5)}
+    .ch-name{font-size:13px;font-weight:700;color:rgba(255,255,255,.9)}
+    .live-badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:16px}
+    .blive{background:#c00;color:#fff}
+    .boff{background:#333;color:rgba(255,255,255,.35)}
+    .viewers{font-size:11px;color:rgba(255,255,255,.4)}
+    #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:99}
+    #overlay.show{display:flex}
+    .spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.12);border-top-color:#c00;border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .info-bar{background:rgba(200,0,0,.08);border-top:1px solid rgba(200,0,0,.2);padding:10px 16px;font-size:12px;color:rgba(255,255,255,.45);text-align:center}
+    footer{text-align:center;padding:14px;font-size:11px;color:rgba(255,255,255,.15)}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><div class="live-dot"></div>&#128250; البث المباشر &#8212; الحسن الرياضية</div>
+</header>
+
+<div id="player-wrap">
+  <div class="placeholder" id="placeholder"><span class="pi">&#9654;&#65039;</span><p>اختر قناة للبدء</p></div>
+  <video id="vid" controls playsinline></video>
+</div>
+<div id="buf-bar-wrap"><div id="buf-bar"></div></div>
+<div id="status">جاهز</div>
+<div id="ticker-wrap"><div id="ticker-text"></div></div>
+
+<p class="sec-title">&#128225; القنوات المتاحة</p>
+
+<div class="ch-grid">
+  <!-- Channel 1 -->
+  <div class="ch-card" id="ch-channel1" data-id="channel1" data-name="الحسن الرياضية 1" onclick="play(this)">
+    <img class="ch-logo" src="img/ch1.jpg" alt="الحسن الرياضية 1" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="ch-logo-fb" style="display:none">1</div>
+    <div class="ch-footer">
+      <span class="ch-name">الحسن الرياضية 1</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="live-badge boff" id="b-channel1">OFF</span>
+        <span class="viewers" id="v-channel1"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Channel 2 -->
+  <div class="ch-card" id="ch-channel2" data-id="channel2" data-name="الحسن الرياضية 2" onclick="play(this)">
+    <img class="ch-logo" src="img/ch2.jpg" alt="الحسن الرياضية 2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="ch-logo-fb" style="display:none">2</div>
+    <div class="ch-footer">
+      <span class="ch-name">الحسن الرياضية 2</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="live-badge boff" id="b-channel2">OFF</span>
+        <span class="viewers" id="v-channel2"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Channel 3 -->
+  <div class="ch-card" id="ch-channel3" data-id="channel3" data-name="الحسن الرياضية 3" onclick="play(this)">
+    <img class="ch-logo" src="img/ch3.jpg" alt="الحسن الرياضية 3" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="ch-logo-fb" style="display:none">3</div>
+    <div class="ch-footer">
+      <span class="ch-name">الحسن الرياضية 3</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="live-badge boff" id="b-channel3">OFF</span>
+        <span class="viewers" id="v-channel3"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Channel 4 -->
+  <div class="ch-card" id="ch-channel4" data-id="channel4" data-name="الحسن الرياضية 4" onclick="play(this)">
+    <img class="ch-logo" src="img/ch4.jpg" alt="الحسن الرياضية 4" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="ch-logo-fb" style="display:none">4</div>
+    <div class="ch-footer">
+      <span class="ch-name">الحسن الرياضية 4</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="live-badge boff" id="b-channel4">OFF</span>
+        <span class="viewers" id="v-channel4"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="info-bar">&#128246; البث عبر سيرفر الشبكة &#8212; مستقر لجميع المشاهدين</div>
+<footer>www.h.net</footer>
+
+<div id="overlay"><div class="spinner"></div><p id="ovTxt">جاري الاتصال&#8230;</p></div>
+
+<script>
+var SERVER = window.location.origin;
+
+var currentCard = null, hlsInst = null, tsPlayer = null;
+var retryTimer = null, statsTimer = null, tickerTimer = null;
+var retryCount = 0, currentChId = null;
+
+function refreshStats() {
+  fetch(SERVER + "/api/stream/stats")
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+    .then(function(data){
+      data.forEach(function(ch){
+        var b = document.getElementById('b-' + ch.id);
+        var v = document.getElementById('v-' + ch.id);
+        if (b) { b.textContent = ch.active ? 'LIVE' : 'OFF'; b.className = 'live-badge ' + (ch.active ? 'blive' : 'boff'); }
+        if (v) v.textContent = ch.active ? ('👁️ ' + (ch.viewers || 0)) : '';
+      });
+    })
+    .catch(function(){});
+}
+
+function refreshTicker() {
+  fetch(SERVER + "/api/ticker")
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+    .then(function(ticker){
+      var tickerWrap = document.getElementById('ticker-wrap');
+      var tickerText = document.getElementById('ticker-text');
+      
+      if (ticker.enabled && ticker.text) {
+        tickerText.textContent = ticker.text;
+        tickerWrap.style.display = 'block';
+      } else {
+        tickerWrap.style.display = 'none';
+      }
+    })
+    .catch(function(){});
+}
+
+refreshStats();
+refreshTicker();
+statsTimer = setInterval(refreshStats, 8000);
+tickerTimer = setInterval(refreshTicker, 5000);
+
+function play(card) {
+  var id = card.getAttribute('data-id'), name = card.getAttribute('data-name');
+  if (currentChId === id) return;
+  currentChId = id;
+  if (currentCard) currentCard.classList.remove('playing');
+  card.classList.add('playing');
+  currentCard = card;
+  retryCount = 0;
+  startPlay(id, name);
+}
+
+async function startPlay(id, name) {
+  destroyPlayers();
+  showOverlay('جاري الاتصال بـ ' + name + '…');
+  setStatus('جاري الاتصال…');
+  var vid = document.getElementById('vid');
+  document.getElementById('placeholder').style.display = 'none';
+  vid.style.display = 'block';
+  var streamUrl = SERVER + "/api/stream/" + id;
+  
+  var streamType = 'ts';
+  try {
+    var pr = await fetch(SERVER + "/api/stream/" + id + "/probe");
+    if (pr.ok) { var info = await pr.json(); streamType = info.type || 'ts'; }
+  } catch(e) {}
+
+  if (currentChId !== id) return;
+  
+  if (streamType === 'hls') {
+    if (typeof Hls !== 'undefined' && Hls.isSupported()) startHls(vid, streamUrl, id, name);
+    else if (vid.canPlayType('application/vnd.apple.mpegurl')) startNativeHls(vid, streamUrl, id, name);
+    else startMpegts(vid, streamUrl, id, name);
+  } else {
+    if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) startMpegts(vid, streamUrl, id, name);
+    else startNativeHls(vid, streamUrl, id, name);
+  }
+}
+
+function startHls(vid, url, id, name) {
+  var hls = new Hls({ maxBufferLength:30, nudgeMaxRetry:10 });
+  hls.loadSource(url); hls.attachMedia(vid); hlsInst = hls;
+  hls.on(Hls.Events.MANIFEST_PARSED, function() { hideOverlay(); setStatus('HLS Active','hls'); vid.play().catch(function(){}); });
+  hls.on(Hls.Events.ERROR, function(_e, data) { if (data.fatal) { hls.destroy(); if (currentChId === id) scheduleRetry(id, name); } });
+}
+
+function startNativeHls(vid, url, id, name) {
+  vid.src = url;
+  vid.oncanplay = function() { hideOverlay(); setStatus('HLS Native','hls'); vid.play(); };
+  vid.onerror = function() { if (currentChId===id) scheduleRetry(id, name); };
+}
+
+function startMpegts(vid, url, id, name) {
+  var p = mpegts.createPlayer({type:'mpegts',url:url,isLive:true});
+  p.attachMediaElement(vid); p.load(); tsPlayer = p;
+  p.on(mpegts.Events.ERROR, function() { p.destroy(); if(currentChId===id) scheduleRetry(id,name); });
+  vid.oncanplay = function() { hideOverlay(); setStatus('MPEG-TS Active','ts'); vid.play().catch(function(){}); };
+}
+
+function scheduleRetry(id, name) {
+  if (currentChId !== id) return;
+  retryCount++;
+  var delay = Math.min(2000 * retryCount, 10000);
+  setStatus('إعادة المحاولة ' + retryCount + '…', 'warn');
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = setTimeout(function() { startPlay(id, name); }, delay);
+}
+
+function destroyPlayers() {
+  var vid = document.getElementById('vid');
+  if (hlsInst) { hlsInst.destroy(); hlsInst=null; }
+  if (tsPlayer) { tsPlayer.destroy(); tsPlayer=null; }
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer=null; }
+  vid.pause(); vid.removeAttribute('src'); vid.load();
+}
+
+function showOverlay(msg){document.getElementById('ovTxt').textContent=msg;document.getElementById('overlay').classList.add('show');}
+function hideOverlay(){document.getElementById('overlay').classList.remove('show');}
+function setStatus(msg,type){
+  var bar=document.getElementById('status'),badge='';
+  if(type==='hls') badge='<span class="sbadge sb-hls">HLS</span> ';
+  if(type==='ts')  badge='<span class="sbadge sb-ts">TS</span> ';
+  if(type==='warn')badge='<span class="sbadge sb-warn">⚠️</span> ';
+  bar.innerHTML=badge+msg;
+}
+</script>
+</body>
+</html>
