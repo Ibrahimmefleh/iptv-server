@@ -167,12 +167,23 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Serve static files
-app.use(express.static(__dirname));
+// Serve static files from the current directory
+app.use(express.static(path.join(__dirname)));
+// Fallback: serve from a 'public' directory if it exists
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Root route to pass healthchecks and redirect to watch
 app.get('/', (req, res) => {
   res.redirect('/watch.html');
+});
+
+// Explicit routes for main HTML files to guarantee they are found
+app.get('/watch.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'watch.html'));
+});
+
+app.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // ========================================
