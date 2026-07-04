@@ -126,7 +126,7 @@
 <div id="overlay"><div class="spinner"></div><p id="ovTxt">جاري الاتصال&#8230;</p></div>
 
 <script>
-var SERVER = window.location.origin;
+var SERVER = "https://iptv-streaming-server-production.up.railway.app";
 
 var currentCard = null, hlsInst = null, tsPlayer = null;
 var retryTimer = null, statsTimer = null, tickerTimer = null;
@@ -136,25 +136,28 @@ function refreshStats() {
   fetch(SERVER + "/api/stream/stats")
     .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
     .then(function(data){
-      data.forEach(function(ch){
+      // Support both array and object formats
+      const stats = Array.isArray(data) ? data : Object.keys(data.channels).map(id => ({ id, ...data.channels[id] }));
+      stats.forEach(function(ch){
         var b = document.getElementById('b-' + ch.id);
         var v = document.getElementById('v-' + ch.id);
-        if (b) { b.textContent = ch.active ? 'LIVE' : 'OFF'; b.className = 'live-badge ' + (ch.active ? 'blive' : 'boff'); }
-        if (v) v.textContent = ch.active ? ('👁️ ' + (ch.viewers || 0)) : '';
+        const isActive = ch.active || ch.status === 'ON';
+        if (b) { b.textContent = isActive ? 'LIVE' : 'OFF'; b.className = 'live-badge ' + (isActive ? 'blive' : 'boff'); }
+        if (v) v.textContent = isActive ? ('👁️ ' + (ch.viewers || 0)) : '';
       });
     })
     .catch(function(){});
 }
 
 function refreshTicker() {
-  fetch(SERVER + "/api/ticker")
+  fetch(SERVER + "/api/stream/stats") // Using the same stats endpoint which now includes ticker
     .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
-    .then(function(ticker){
+    .then(function(data){
       var tickerWrap = document.getElementById('ticker-wrap');
       var tickerText = document.getElementById('ticker-text');
       
-      if (ticker.enabled && ticker.text) {
-        tickerText.textContent = ticker.text;
+      if (data.ticker && data.ticker.active && data.ticker.text) {
+        tickerText.textContent = data.ticker.text;
         tickerWrap.style.display = 'block';
       } else {
         tickerWrap.style.display = 'none';
